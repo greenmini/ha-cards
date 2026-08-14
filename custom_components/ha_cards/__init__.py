@@ -33,6 +33,7 @@ CARD_MODULES = {
     "air-quality-card.js": "/static/ha_cards/air-quality-card.js",
     "dishwasher-card.js": "/static/ha_cards/dishwasher-card.js",
     "weather-card.js": "/static/ha_cards/weather-card.js",
+    "weather-pixel-card.js": "/static/ha_cards/weather-pixel-card.js",
     "power-card.js": "/static/ha_cards/power-card.js",
 }
 

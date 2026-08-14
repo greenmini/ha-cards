@@ -528,6 +528,7 @@ class PowerCard extends HTMLElement {
   }
 }
 
+window.customCards = window.customCards || [];
 if (!customElements.get("power-card")) {
   customElements.define("power-card", PowerCard);
 }

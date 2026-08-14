@@ -25,6 +25,7 @@
 |---|---|---|---|
 | [**ha-air-quality-card**](https://github.com/greenmini/ha-air-quality-card) | 空气质量卡片：5×7 点阵数值、VU 电平条、LED 呼吸灯、总评电平块 | Nothing 点阵像素风 | ✅ 维护中 |
 | [**dishwasher-card**](https://github.com/greenmini/dishwasher-card) | 一体化洗碗机状态卡：电源开关、进度、剩余时间、阶段、功率、能耗（Lovelace 卡片 + HA 集成） | Nothing 点阵像素风 | ✅ v2.0.0 |
+| [**power-card**](https://github.com/greenmini/ha-cards/blob/main/custom_components/ha_cards/power-card.js) | 电力/用电卡片：今日/本月/今年用电量、实时功率、分时电价分布、近 7 天用电条形图、电费明细 | Nothing 点阵像素风 | ✅ v1.0.0（随集成） |
 | [**weather-glass-card**](https://github.com/greenmini/weather-glass-card) | 玻璃拟态天气卡：粒子效果、环境光、天气动效 | 玻璃拟态 | 🧹 待整理（缺 README） |
 | [**fork_u-house_card**](https://github.com/greenmini/fork_u-house_card) | [U House Card](https://github.com/ulic75/u-house-card) 的分支 | — | 🔀 fork |
 

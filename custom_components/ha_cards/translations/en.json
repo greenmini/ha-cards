@@ -1,3 +1,13 @@
 {
-  "title": "GreenMini Cards"
+  "config": {
+    "step": {
+      "user": {
+        "title": "GreenMini Cards",
+        "description": "Add the GreenMini card pack (air quality / dishwasher / power / weather). No configuration needed; just submit."
+      }
+    },
+    "abort": {
+      "already_configured": "GreenMini Cards is already configured"
+    }
+  }
 }

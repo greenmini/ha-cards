@@ -3,6 +3,22 @@
 [greenmini](https://github.com/greenmini) 出品的 Home Assistant Lovelace 自定义卡片合集。
 统一设计语言、统一安装方式（HACS 自定义仓库）。
 
+## ⚡ 一条龙安装：装成一个集成
+
+本仓库同时是一个 **HA 集成「GreenMini Cards」**（`custom_components/ha_cards`），
+把家族全部卡片打包成**一个包**，安装一次全部注册、自动注入前端，无需手动添加资源：
+
+1. HACS → 右上角 ⋮ → **自定义存储库**
+2. 仓库地址：`https://github.com/greenmini/ha-cards`，类别选 **集成 (Integration)**
+3. HACS → 集成 → 搜索 **GreenMini Cards** → 下载 → **重启 Home Assistant**
+4. 所有卡片立即可用：`custom:air-quality-card` / `custom:dishwasher-card` / `custom:weather-glass-card`
+
+> 也可以只装其中某一张卡（各卡片也有独立仓库，见下表）；装集成版时若与其他独立安装方式
+> 同时存在，卡片有防重复注册保护，不会冲突。
+>
+> 📎 天气卡的 UI 编辑器（`weather-card-editor.js`）因依赖外部 CDN 的 lit，**不随集成自动注入**；
+> 如需可视化编辑天气卡，请手动添加资源 `/local/ha_cards/weather-card-editor.js`（需能访问 unpkg）。
+
 ## 🃏 卡片一览
 
 | 卡片 | 说明 | 风格 | 状态 |

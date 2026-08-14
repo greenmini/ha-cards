@@ -35,6 +35,10 @@ CARD_MODULES = {
     "dishwasher-card.js": "/static/ha_cards/dishwasher-card.js",
     "weather-card.js": "/static/ha_cards/weather-card.js",
     "weather-pixel-card.js": "/static/ha_cards/weather-pixel-card.js",
+    "light-pixel-card.js": "/static/ha_cards/light-pixel-card.js",
+    "climate-pixel-card.js": "/static/ha_cards/climate-pixel-card.js",
+    "fan-pixel-card.js": "/static/ha_cards/fan-pixel-card.js",
+    "cover-pixel-card.js": "/static/ha_cards/cover-pixel-card.js",
     "power-card.js": "/static/ha_cards/power-card.js",
 }
 

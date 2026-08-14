@@ -5,6 +5,7 @@ them into the frontend automatically:
 
 - air-quality-card   (像素版空气质量卡片)
 - dishwasher-card    (像素版洗碗机卡片)
+- power-card         (像素版电力/用电卡片)
 - weather-glass-card (玻璃拟态天气卡片)
 
 Install once via HACS; no manual Lovelace resources needed.
@@ -29,6 +30,7 @@ CARD_MODULES = {
     "air-quality-card.js": "/static/ha_cards/air-quality-card.js",
     "dishwasher-card.js": "/static/ha_cards/dishwasher-card.js",
     "weather-card.js": "/static/ha_cards/weather-card.js",
+    "power-card.js": "/static/ha_cards/power-card.js",
 }
 
 

@@ -1,0 +1,12 @@
+{
+  "domain": "ha_cards",
+  "name": "GreenMini Cards",
+  "version": "1.0.0",
+  "codeowners": ["@greenmini"],
+  "config_flow": false,
+  "dependencies": ["frontend", "http"],
+  "documentation": "https://github.com/greenmini/ha-cards",
+  "issue_tracker": "https://github.com/greenmini/ha-cards/issues",
+  "iot_class": "local_push",
+  "requirements": []
+}

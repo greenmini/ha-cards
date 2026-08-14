@@ -459,6 +459,7 @@ class WeatherPixelCard extends HTMLElement {
   }
 }
 
+window.customCards = window.customCards || [];
 if (!customElements.get("weather-pixel-card")) {
   customElements.define("weather-pixel-card", WeatherPixelCard);
 }

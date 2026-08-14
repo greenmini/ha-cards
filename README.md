@@ -27,6 +27,10 @@
 | [**dishwasher-card**](https://github.com/greenmini/dishwasher-card) | 一体化洗碗机状态卡：电源开关、进度、剩余时间、阶段、功率、能耗（Lovelace 卡片 + HA 集成） | Nothing 点阵像素风 | ✅ v2.0.0 |
 | [**power-card**](https://github.com/greenmini/ha-cards/blob/main/custom_components/ha_cards/power-card.js) | 电力/用电卡片：今日/本月/今年用电量、实时功率、分时电价分布、近 7 天用电条形图、电费明细 | Nothing 点阵像素风 | ✅ v1.0.0（随集成） |
 | [**weather-glass-card**](https://github.com/greenmini/weather-glass-card) | 玻璃拟态天气卡：粒子效果、环境光、天气动效 | 玻璃拟态 | 🧹 待整理（缺 README） |
+| [**light-pixel-card**](https://github.com/greenmini/ha-cards/blob/main/custom_components/ha_cards/light-pixel-card.js) | 灯光卡片（像素版）：亮度点阵 + VU，支持可视化编辑 | Nothing 点阵像素风 | ✅ v1.0.0（随集成） |
+| [**climate-pixel-card**](https://github.com/greenmini/ha-cards/blob/main/custom_components/ha_cards/climate-pixel-card.js) | 空调卡片（像素版）：当前/设定温度 + 模式状态，支持可视化编辑 | Nothing 点阵像素风 | ✅ v1.0.0（随集成） |
+| [**fan-pixel-card**](https://github.com/greenmini/ha-cards/blob/main/custom_components/ha_cards/fan-pixel-card.js) | 风扇卡片（像素版）：速度点阵 + VU，支持可视化编辑 | Nothing 点阵像素风 | ✅ v1.0.0（随集成） |
+| [**cover-pixel-card**](https://github.com/greenmini/ha-cards/blob/main/custom_components/ha_cards/cover-pixel-card.js) | 窗帘卡片（像素版）：开合状态 + 开度，一键开/关/停，支持可视化编辑 | Nothing 点阵像素风 | ✅ v1.0.0（随集成） |
 | [**weather-pixel-card**](https://github.com/greenmini/ha-cards/blob/main/custom_components/ha_cards/weather-pixel-card.js) | 天气卡片（像素版）：当前温度、状态图标、湿度/风速/气压 VU、4 天预报 | Nothing 点阵像素风 | ✅ v1.0.0（随集成） |
 | [**fork_u-house_card**](https://github.com/greenmini/fork_u-house_card) | [U House Card](https://github.com/ulic75/u-house-card) 的分支 | — | 🔀 fork |
 

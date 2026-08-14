@@ -37,33 +37,46 @@ CARD_MODULES = {
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the GreenMini card pack integration."""
     pkg_dir = Path(__file__).parent
+    static_configs = [
+        (url, str(pkg_dir / name)) for name, url in CARD_MODULES.items()
+    ]
 
-    # 1. serve every card JS through Home Assistant's own static handler
-    static_configs = []
-    for name, url in CARD_MODULES.items():
-        static_configs.append((url, str(pkg_dir / name)))
+    # 1. serve the card JS through Home Assistant's own static handler.
+    #    Try each API generation independently; never let setup fail.
     try:
-        from homeassistant.http import StaticPathConfig
+        from homeassistant.components.http import StaticPathConfig
 
         await hass.http.async_register_static_paths(
             [StaticPathConfig(url, path, False) for url, path in static_configs]
         )
-    except Exception:  # noqa: BLE001 - fall back for older HA versions
-        for url, path in static_configs:
-            hass.http.register_static_path(url, path, cache_headers=False)
+        _LOGGER.debug("ha_cards: static paths registered (new API)")
+    except Exception as err:  # noqa: BLE001 - fall back for older HA versions
+        _LOGGER.warning("ha_cards: new static API failed (%s), trying legacy", err)
+        try:
+            for url, path in static_configs:
+                hass.http.register_static_path(url, path, cache_headers=False)
+            _LOGGER.debug("ha_cards: static paths registered (legacy API)")
+        except Exception as err2:  # noqa: BLE001
+            _LOGGER.warning("ha_cards: legacy static API also failed (%s)", err2)
 
     # 2. inject every module into the frontend
-    extra = hass.data.get(frontend.DATA_EXTRA_MODULE_URL)
-    if extra is not None:
-        for url in CARD_MODULES.values():
-            if hasattr(extra, "add"):
-                extra.add(url)
-            else:
-                extra.append(url)
-        _LOGGER.debug("GreenMini cards registered: %s", ", ".join(CARD_MODULES))
-    else:
-        _LOGGER.warning(
-            "frontend extra-module store not available; GreenMini cards not injected"
-        )
+    try:
+        extra = hass.data.get(frontend.DATA_EXTRA_MODULE_URL)
+        if extra is not None:
+            for url in CARD_MODULES.values():
+                if hasattr(extra, "add"):
+                    extra.add(url)
+                else:
+                    extra.append(url)
+            _LOGGER.debug(
+                "ha_cards: injected %s", ", ".join(CARD_MODULES.values())
+            )
+        else:
+            _LOGGER.warning(
+                "ha_cards: frontend extra-module store not available; "
+                "cards will not be injected automatically"
+            )
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.warning("ha_cards: failed to inject card modules (%s)", err)
 
     return True

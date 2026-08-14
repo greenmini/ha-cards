@@ -498,6 +498,7 @@ class DishwasherCard extends HTMLElement {
   }
 }
 
+window.customCards = window.customCards || [];
 if (!customElements.get("dishwasher-card")) {
   customElements.define("dishwasher-card", DishwasherCard);
 }

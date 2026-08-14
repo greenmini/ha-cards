@@ -8,7 +8,8 @@ them into the frontend automatically:
 - power-card         (像素版电力/用电卡片)
 - weather-glass-card (玻璃拟态天气卡片)
 
-Install once via HACS; no manual Lovelace resources needed.
+Install via HACS, then add the integration once from Settings -> Devices
+& Services (it has a config flow so it can be loaded from the UI).
 """
 
 from __future__ import annotations
@@ -17,10 +18,12 @@ import logging
 from pathlib import Path
 
 from homeassistant.components import frontend
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
-DOMAIN = "ha_cards"
+from .const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 # file name -> public URL served by Home Assistant
@@ -34,8 +37,8 @@ CARD_MODULES = {
 }
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the GreenMini card pack integration."""
+async def _register_cards(hass: HomeAssistant) -> None:
+    """Serve the card JS and inject the modules into the frontend."""
     pkg_dir = Path(__file__).parent
     static_configs = [
         (url, str(pkg_dir / name)) for name, url in CARD_MODULES.items()
@@ -68,9 +71,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                     extra.add(url)
                 else:
                     extra.append(url)
-            _LOGGER.debug(
-                "ha_cards: injected %s", ", ".join(CARD_MODULES.values())
-            )
+            _LOGGER.debug("ha_cards: injected %s", ", ".join(CARD_MODULES.values()))
         else:
             _LOGGER.warning(
                 "ha_cards: frontend extra-module store not available; "
@@ -79,4 +80,19 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     except Exception as err:  # noqa: BLE001
         _LOGGER.warning("ha_cards: failed to inject card modules (%s)", err)
 
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up via configuration.yaml (legacy path)."""
+    await _register_cards(hass)
+    return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up via config flow (UI)."""
+    await _register_cards(hass)
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload (nothing to tear down)."""
     return True

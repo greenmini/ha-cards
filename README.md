@@ -16,7 +16,7 @@
 > 也可以只装其中某一张卡（各卡片也有独立仓库，见下表）；装集成版时若与其他独立安装方式
 > 同时存在，卡片有防重复注册保护，不会冲突。
 >
-> 📎 天气卡的 UI 编辑器（`weather-card-editor.js`）因依赖外部 CDN 的 lit，**不随集成自动注入**；
+> 📎 说明：空气质量卡（air-quality-card）由独立 HACS 前端插件仓库提供，**不随集成重复注入**（避免重复注册）；天气卡 UI 编辑器（`weather-card-editor.js`）因依赖外部 CDN 的 lit，**不随集成自动注入**；
 > 如需可视化编辑天气卡，请手动添加资源 `/local/ha_cards/weather-card-editor.js`（需能访问 unpkg）。
 
 ## 🃏 卡片一览

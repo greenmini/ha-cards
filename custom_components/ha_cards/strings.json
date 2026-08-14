@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GreenMini Cards",
+        "description": "添加 GreenMini 卡片全家桶（空气质量 / 洗碗机 / 电力 / 天气）。无需任何配置，点击提交即可。"
+      }
+    },
+    "abort": {
+      "already_configured": "GreenMini Cards 已添加"
+    }
+  }
+}

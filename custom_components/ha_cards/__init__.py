@@ -3,7 +3,7 @@
 Bundles every Lovelace card from greenmini's HA card family and injects
 them into the frontend automatically:
 
-- air-quality-card   (像素版空气质量卡片)
+- air-quality-card   (像素版空气质量卡片, 由独立仓库/HACS 插件提供)
 - dishwasher-card    (像素版洗碗机卡片)
 - power-card         (像素版电力/用电卡片)
 - weather-glass-card (玻璃拟态天气卡片)
@@ -27,10 +27,11 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 # file name -> public URL served by Home Assistant
-# (weather-card-editor.js is intentionally NOT injected: it imports lit from
-#  an external CDN; keep it available for manual use only)
+# (air-quality-card is provided by its own HACS frontend plugin repo and is
+#  intentionally NOT injected here to avoid duplicate registration;
+#  weather-card-editor.js is NOT injected either: it imports lit from an
+#  external CDN. Both stay available for manual use.)
 CARD_MODULES = {
-    "air-quality-card.js": "/static/ha_cards/air-quality-card.js",
     "dishwasher-card.js": "/static/ha_cards/dishwasher-card.js",
     "weather-card.js": "/static/ha_cards/weather-card.js",
     "weather-pixel-card.js": "/static/ha_cards/weather-pixel-card.js",

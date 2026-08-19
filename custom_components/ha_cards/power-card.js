@@ -1,13 +1,15 @@
 /**
- * Power Card · PIXEL EDITION v1.0.0
+ * Power Card · PIXEL EDITION v1.1.0
  * Nothing 点阵像素风电力/用电卡片 —— 与 ha-air-quality-card / dishwasher-card 统一设计语言：
  * #0d0d0d 微网格底、5x7 点阵字形、VU 分段电平条、LED 呼吸灯、级联入场。
+ * v1.1.0：引入 Amicro mono-charts 数据处理 —— 5 级色阶、面积渐变条形图、
+ *         较昨日 KPI 变化率、热力强度条。
  *
  * 功能：
- *   - 今日用电量（大字点阵，hero）
+ *   - 今日用电量（大字点阵 + 较昨日 KPI 变化率）
  *   - 本月 / 今年用电量 + 实时功率（点阵数字 + VU）
  *   - 峰/平/谷/尖 时段用电分布（像素电平条）
- *   - 近 7 天日用电量（像素条形图，走 HA history API）
+ *   - 近 7 天日用电量（像素条形图，5 级热力色 + 渐变，走 HA history API）
  *   - 本月/今年电费 + 电费余额（余额低时红色警示 + LED）
  *
  * 用法：
@@ -23,7 +25,7 @@
  *   low_balance: 50
  */
 
-const CARD_VERSION = "1.0.0-pixel";
+const CARD_VERSION = "1.1.0-pixel";
 
 const C = {
   bg: "#0d0d0d",
@@ -35,10 +37,26 @@ const C = {
   hair: "rgba(255,255,255,.1)",
   brand: "#e04b34",
   green: "#3fbf6f",
+  lime: "#8bc34a",
   amber: "#d9c24a",
   orange: "#e07834",
   red: "#ff5a3c",
 };
+
+/* 5 级色阶（Amicro mono-charts 风格）：very good / good / fair / poor / very poor */
+const LEVELS5 = [C.green, C.lime, C.amber, C.orange, C.red];
+function progressLevel5(v) {
+  if (v < 20) return 0;
+  if (v < 40) return 1;
+  if (v < 60) return 2;
+  if (v < 80) return 3;
+  return 4;
+}
+function hexToRgba(hex, a) {
+  const h = hex.replace("#", "");
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
 
 const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC","Microsoft YaHei",monospace';
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
@@ -203,6 +221,10 @@ class PowerCard extends HTMLElement {
         .hero .meta { flex: 1 1 auto; min-width: 0; }
         .hero .cn { font-size: 18px; font-weight: 600; letter-spacing: .3em; }
         .hero .sub { margin-top: 6px; font-size: 9px; letter-spacing: .24em; color: ${C.faint}; text-transform: uppercase; }
+        .hero .delta { font-size: 9px; letter-spacing: .1em; margin-left: 8px; padding: 2px 6px; border-radius: 999px; border: 1px solid ${C.hair}; }
+        .hero .delta.up { color: ${C.red}; border-color: ${C.red}; }
+        .hero .delta.down { color: ${C.green}; border-color: ${C.green}; }
+        .hero .delta.flat { color: ${C.dim}; }
         .hero .unit { margin-top: 4px; font-size: 9px; letter-spacing: .2em; color: ${C.faint}; }
 
         .blocks { display: flex; gap: 5px; margin-top: 10px; }
@@ -293,7 +315,7 @@ class PowerCard extends HTMLElement {
           <canvas class="num"></canvas>
           <div class="meta">
             <div class="cn">--</div>
-            <div class="sub">TODAY // 今日用电</div>
+            <div class="sub">TODAY // 今日用电 <span class="delta" data-delta hidden></span></div>
             <div class="blocks"><span class="blk"></span><span class="blk"></span><span class="blk"></span><span class="blk"></span></div>
           </div>
         </div>
@@ -408,6 +430,20 @@ class PowerCard extends HTMLElement {
       drawPixels(this._heroCv, "--", 7, C.faint);
     }
 
+    /* KPI 变化率：今日 vs 昨日（来自 7 天历史） */
+    const deltaEl = this.shadowRoot.querySelector("[data-delta]");
+    if (deltaEl) {
+      if (this._delta && this._delta.valid) {
+        const up = this._delta.pct > 0.5;
+        const down = this._delta.pct < -0.5;
+        deltaEl.hidden = false;
+        deltaEl.textContent = up ? `▲ ${this._delta.pct.toFixed(0)}%` : down ? `▼ ${Math.abs(this._delta.pct).toFixed(0)}%` : "—";
+        deltaEl.className = "delta " + (up ? "up" : down ? "down" : "flat");
+      } else {
+        deltaEl.hidden = true;
+      }
+    }
+
     /* 指标列 */
     const setMetric = (key, eid, max, color, decimals) => {
       const els = this._metricEls[key];
@@ -495,7 +531,16 @@ class PowerCard extends HTMLElement {
           out.push({ date: d, v: byDay[key] ?? null });
         }
         this._hist = out;
+        /* KPI 变化率：今日 vs 昨日 */
+        const todayV = out[out.length - 1]?.v;
+        const yestV = out[out.length - 2]?.v;
+        if (todayV !== null && todayV !== undefined && yestV !== null && yestV !== undefined && yestV > 0) {
+          this._delta = { valid: true, pct: ((todayV - yestV) / yestV) * 100 };
+        } else {
+          this._delta = { valid: false };
+        }
         this._renderWeek();
+        this._update();
       })
       .catch(() => { /* 历史不可用时静默隐藏 */ })
       .finally(() => { this._histLoading = false; });
@@ -508,13 +553,19 @@ class PowerCard extends HTMLElement {
     const today = new Date();
     const max = Math.max(...days.map(d => d.v || 0), 1);
     const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+    /* 5 级热力色阶：按当日用量相对最大值分档 */
     const bars = days.map(d => {
       const v = d.v || 0;
       const segs = 5;
       const lit = Math.max(0, Math.min(segs, Math.round((v / max) * segs)));
       const isToday = `${d.date.getFullYear()}-${d.date.getMonth()}-${d.date.getDate()}` === todayKey;
-      const stack = Array.from({ length: segs }, (_, i) =>
-        `<span class="bar-seg ${i < lit ? "on" : ""} ${isToday && i < lit ? "today" : ""}"></span>`).join("");
+      /* 面积渐变：每根条自下而上 alpha 递减（Amicro 风格渐变） */
+      const levelColor = LEVELS5[progressLevel5((v / max) * 100)];
+      const stack = Array.from({ length: segs }, (_, i) => {
+        if (i >= lit) return `<span class="bar-seg"></span>`;
+        const alpha = 0.4 + 0.6 * ((i + 1) / segs); // 底亮顶淡
+        return `<span class="bar-seg on" style="background:${hexToRgba(isToday ? C.brand : levelColor, alpha)}"></span>`;
+      }).join("");
       const dayLabel = `${d.date.getMonth() + 1}/${d.date.getDate()}`;
       return `<div class="bar-col"><div class="bar-stack">${stack}</div><div class="bar-day">${dayLabel}</div></div>`;
     }).join("");

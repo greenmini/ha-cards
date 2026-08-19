@@ -1,5 +1,5 @@
 /**
- * Power Card · PIXEL EDITION v1.1.0
+ * Power Card · PIXEL EDITION v1.1.1
  * Nothing 点阵像素风电力/用电卡片 —— 与 ha-air-quality-card / dishwasher-card 统一设计语言：
  * #0d0d0d 微网格底、5x7 点阵字形、VU 分段电平条、LED 呼吸灯、级联入场。
  * v1.1.0：引入 Amicro mono-charts 数据处理 —— 5 级色阶、面积渐变条形图、
@@ -25,7 +25,7 @@
  *   low_balance: 50
  */
 
-const CARD_VERSION = "1.1.0-pixel";
+const CARD_VERSION = "1.1.1-pixel";
 
 const C = {
   bg: "#0d0d0d",
@@ -502,7 +502,7 @@ class PowerCard extends HTMLElement {
     this.shadowRoot.querySelector('[data-part="rows"]').innerHTML = rows.join("");
   }
 
-  /* 近 7 天日用电量：走 HA history API，每天取最大值 */
+  /* 近 7 天日用电量：走 HA history/stream（WebSocket，自带认证），每天取最大值 */
   _loadHistory(force) {
     const cfg = this._config;
     if (!cfg.today || !this._hass || this._histLoading) return;
@@ -511,22 +511,26 @@ class PowerCard extends HTMLElement {
     this._histLoading = true;
     const end = new Date();
     const start = new Date(end.getTime() - (days + 1) * 86400000);
-    const url = `/api/history/period/${start.toISOString()}?filter_entity_id=${encodeURIComponent(cfg.today)}&end_time=${end.toISOString()}&minimal_response&no_attributes`;
-    const token = this._hass.auth?.accessToken || this._hass.auth?.tokens?.access_token || this._hass.auth?.access_token;
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => { if (!r.ok) throw new Error("history " + r.status); return r.json(); })
-      .then(data => {
-        const series = (data && data[0]) || [];
-        const byDay = {};
-        for (const s of series) {
-          const d = new Date(s.last_changed);
-          const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-          const v = parseFloat(s.state);
-          if (!isNaN(v)) byDay[key] = Math.max(byDay[key] || 0, v);
-        }
-        const out = [];
-        for (let i = days - 1; i >= 0; i--) {
-          const d = new Date(end.getTime() - i * 86400000);
+    const req = {
+      type: "history/stream",
+      entity_ids: [cfg.today],
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      minimal_response: true,
+      no_attributes: true,
+    };
+    const onData = (data) => {
+      const series = (data && data[0]) || [];
+      const byDay = {};
+      for (const s of series) {
+        const d = new Date(s.last_changed);
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        const v = parseFloat(s.state);
+        if (!isNaN(v)) byDay[key] = Math.max(byDay[key] || 0, v);
+      }
+      const out = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(end.getTime() - i * 86400000);
           const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
           out.push({ date: d, v: byDay[key] ?? null });
         }
@@ -541,9 +545,17 @@ class PowerCard extends HTMLElement {
         }
         this._renderWeek();
         this._update();
-      })
-      .catch(() => { /* 历史不可用时静默隐藏 */ })
-      .finally(() => { this._histLoading = false; });
+    };
+    if (this._hass.callWS) {
+      this._hass.callWS(req).then(onData).catch(() => { this._histLoading = false; });
+    } else {
+      const url = `/api/history/period/${start.toISOString()}?filter_entity_id=${encodeURIComponent(cfg.today)}&end_time=${end.toISOString()}&minimal_response&no_attributes`;
+      const token = this._hass.auth?.accessToken || this._hass.auth?.tokens?.access_token || this._hass.auth?.access_token;
+      fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => { if (!r.ok) throw new Error("history " + r.status); return r.json(); })
+        .then(onData)
+        .catch(() => { this._histLoading = false; });
+    }
   }
 
   _renderWeek() {

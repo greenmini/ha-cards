@@ -1,10 +1,12 @@
 /**
- * Air Quality Card · PIXEL EDITION — Nothing 点阵像素风空气质量卡片 v2
+ * Air Quality Card · PIXEL EDITION — Nothing 点阵像素风空气质量卡片 v2.1.0
  *
  * 设计语言：#0d0d0d 微网格底（22px 细格缓慢漂移）、5x7 点阵字形渲染全部数值、
  * LED 方灯 + 红色方块品牌标、VU 分段电平条（逐段错峰点亮）、等宽字体小标签。
  * 动效：数值滚动 tween（逐帧重绘点阵）、电平条 stagger 点亮、LED 呼吸辉光、
  * 背景网格 38s 漂移、级联入场揭示。尊重 prefers-reduced-motion。
+ * v2.1.0：引入 Amicro mono-charts 数据处理 —— 5 级色阶阈值、近 24h 渐变趋势条、
+ *         趋势 KPI 变化徽章。
  *
  * 用法：
  *   type: custom:air-quality-card
@@ -13,7 +15,7 @@
  *   co2 / pm25 / tvoc / humidity / temperature: <entity_id>
  */
 
-const CARD_VERSION = "2.0.1-pixel";
+const CARD_VERSION = "2.1.0-pixel";
 
 const C = {
   bg: "#0d0d0d",
@@ -25,10 +27,26 @@ const C = {
   hair: "rgba(255,255,255,.1)",
   brand: "#e04b34",
   green: "#3fbf6f",
+  lime: "#8bc34a",
   amber: "#d9c24a",
   orange: "#e07834",
   red: "#ff5a3c",
 };
+
+/* 5 级色阶（Amicro mono-charts 风格）：very good / good / fair / poor / very poor */
+const LEVELS5 = [C.green, C.lime, C.amber, C.orange, C.red];
+function progressLevel5(v) {
+  if (v < 20) return 0;
+  if (v < 40) return 1;
+  if (v < 60) return 2;
+  if (v < 80) return 3;
+  return 4;
+}
+function hexToRgba(hex, a) {
+  const h = hex.replace("#", "");
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
 
 const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC","Microsoft YaHei",monospace';
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
@@ -88,12 +106,12 @@ function drawPixels(cv, text, px, litColor) {
   }
 }
 
-/* ---------- 指标定义 ---------- */
+/* ---------- 指标定义（5 级阈值：very good / good / fair / poor / very poor） ---------- */
 const METRICS = {
-  co2:         { label: "CO2",   unit: "PPM",   max: 2000, decimals: 0, bands: [800, 1500] },
-  pm25:        { label: "PM2.5", unit: "UG/M3", max: 150,  decimals: 0, bands: [35, 75] },
-  tvoc:        { label: "TVOC",  unit: "UG/M3", max: 1500, decimals: 0, bands: [300, 1000] },
-  humidity:    { label: "HUMI",  unit: "%",     max: 100,  decimals: 0, bands: [70, 80], lowBad: 30 },
+  co2:         { label: "CO2",   unit: "PPM",   max: 2000, decimals: 0, bands: [600, 800, 1500, 2000] },
+  pm25:        { label: "PM2.5", unit: "UG/M3", max: 150,  decimals: 0, bands: [15, 35, 75, 150] },
+  tvoc:        { label: "TVOC",  unit: "UG/M3", max: 1500, decimals: 0, bands: [200, 300, 1000, 2000] },
+  humidity:    { label: "HUMI",  unit: "%",     max: 100,  decimals: 0, bands: [45, 60, 70, 85], lowBad: 30 },
   temperature: { label: "TEMP",  unit: "°C",    max: 40,   decimals: 1, bands: null },
 };
 
@@ -104,13 +122,21 @@ const OVERALL = {
   "差":   { word: "BAD",  color: C.red,    blocks: 1 },
 };
 
-function statusColor(key, v) {
+/* 5 级色阶判定：返回 LEVELS5 下标，-1 = 不染色 */
+function statusLevel(key, v) {
   const m = METRICS[key];
-  if (!m.bands) return C.text;
-  if (m.lowBad !== undefined && v < m.lowBad) return C.red;
-  if (v < m.bands[0]) return C.green;
-  if (v < m.bands[1]) return C.amber;
-  return C.red;
+  if (!m.bands) return -1;
+  if (m.lowBad !== undefined && v < m.lowBad) return 4;
+  if (v < m.bands[0]) return 0;
+  if (v < m.bands[1]) return 1;
+  if (v < m.bands[2]) return 2;
+  if (v < m.bands[3]) return 3;
+  return 4;
+}
+
+function statusColor(key, v) {
+  const lv = statusLevel(key, v);
+  return lv < 0 ? C.text : LEVELS5[lv];
 }
 
 const SEGS = 14; // 每根 VU 条的分段数
@@ -132,7 +158,7 @@ class AirQualityCard extends HTMLElement {
     this._render();
   }
 
-  set hass(hass) { this._hass = hass; this._update(); }
+  set hass(hass) { this._hass = hass; this._update(); this._loadTrend(); }
 
   getCardSize() { return 4; }
 
@@ -244,6 +270,17 @@ class AirQualityCard extends HTMLElement {
         .seg:nth-child(11) { transition-delay: 300ms; } .seg:nth-child(12) { transition-delay: 330ms; }
         .seg:nth-child(13) { transition-delay: 360ms; } .seg:nth-child(14) { transition-delay: 390ms; }
 
+        /* ---------- 趋势条（Amicro 渐变热力） ---------- */
+        .trend { padding-top: 12px; }
+        .trend .hd { display: flex; justify-content: space-between; align-items: center; font-size: 8px; letter-spacing: .2em; color: ${C.faint}; margin-bottom: 8px; }
+        .trend .delta { font-size: 9px; letter-spacing: .1em; padding: 2px 6px; border-radius: 999px; border: 1px solid ${C.hair}; }
+        .trend .delta.up { color: ${C.red}; border-color: ${C.red}; }
+        .trend .delta.down { color: ${C.green}; border-color: ${C.green}; }
+        .trend .delta.flat { color: ${C.dim}; }
+        .trow { display: flex; align-items: flex-end; gap: 3px; height: 40px; }
+        .tcol { flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; }
+        .tseg { width: 100%; height: 5px; border-radius: 1px; background: ${C.off}; }
+
         @media (max-width: 400px) {
           .metrics { flex-wrap: wrap; }
           .m { flex: 0 0 33%; padding: 6px 4px; }
@@ -290,6 +327,8 @@ class AirQualityCard extends HTMLElement {
               <div class="un">${METRICS[k].unit}</div>
             </div>`).join("")}
         </div>
+
+        <div class="trend reveal" style="--i:${3 + Object.keys(METRICS).length}" data-part="trend"></div>
       </div>
     `;
 
@@ -381,6 +420,64 @@ class AirQualityCard extends HTMLElement {
       this._setVu(els.segs, v / m.max, color);
     }
   }
+
+  /* ---- 近 24h 趋势（Amicro 渐变热力条 + KPI 徽章） ---- */
+  _loadTrend() {
+    const cfg = this._config;
+    const metricKey = (["pm25", "co2", "tvoc", "humidity", "temperature"]).find(
+      (k) => cfg[k] && this._hass?.states?.[cfg[k]]
+    );
+    if (!metricKey || this._trendLoading) return;
+    const eid = cfg[metricKey];
+    this._trendLoading = true;
+    const end = new Date();
+    const start = new Date(end.getTime() - 24 * 3600000);
+    const url = `/api/history/period/${start.toISOString()}?filter_entity_id=${encodeURIComponent(eid)}&end_time=${end.toISOString()}&minimal_response&no_attributes`;
+    const token = this._hass.auth?.accessToken || this._hass.auth?.tokens?.access_token || this._hass.auth?.access_token;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => { if (!r.ok) throw new Error("history " + r.status); return r.json(); })
+      .then((data) => {
+        const series = (data && data[0]) || [];
+        const vals = series.map((s) => parseFloat(s.state)).filter((v) => !isNaN(v));
+        if (vals.length < 2) return;
+        const step = Math.max(1, Math.floor(vals.length / 12));
+        const sampled = [];
+        for (let i = vals.length - 1; i >= 0; i -= step) sampled.unshift(vals[i]);
+        const last = sampled.slice(-12);
+        this._trend = { key: metricKey, vals: last };
+        this._trendDelta = last[last.length - 1] - last[0];
+        this._renderTrend();
+      })
+      .catch(() => { /* 历史不可用时静默隐藏 */ })
+      .finally(() => { this._trendLoading = false; });
+  }
+
+  _renderTrend() {
+    const el = this.shadowRoot.querySelector('[data-part="trend"]');
+    if (!el || !this._trend) return;
+    const vals = this._trend.vals;
+    const max = Math.max(...vals, 1);
+    const segs = 6;
+    const bars = vals.map((v) => {
+      const lit = Math.max(1, Math.min(segs, Math.round((v / max) * segs)));
+      const lv = Math.max(0, Math.min(4, progressLevel5((v / max) * 100)));
+      const color = LEVELS5[lv];
+      const stack = Array.from({ length: segs }, (_, i) => {
+        if (i >= lit) return `<span class="tseg"></span>`;
+        const alpha = 0.4 + 0.6 * ((i + 1) / segs); // 底亮顶淡（面积渐变）
+        return `<span class="tseg" style="background:${hexToRgba(color, alpha)}"></span>`;
+      }).join("");
+      return `<div class="tcol">${stack}</div>`;
+    }).join("");
+    const d = this._trendDelta;
+    const badge = Math.abs(d) < 1e-9
+      ? '<span class="delta flat">—</span>'
+      : d > 0
+        ? `<span class="delta up">▲ ${d.toFixed(1)}</span>`
+        : `<span class="delta down">▼ ${Math.abs(d).toFixed(1)}</span>`;
+    const m = METRICS[this._trend.key];
+    el.innerHTML = `<div class="hd"><span>TREND // ${m.label} 近24h</span>${badge}</div><div class="trow">${bars}</div>`;
+  }
 }
 
 if (!customElements.get("air-quality-card")) {
@@ -388,11 +485,13 @@ if (!customElements.get("air-quality-card")) {
 }
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "air-quality-card",
-  name: "空气质量卡片 · 像素版",
-  description: "Nothing 点阵像素风：5x7 点阵数值、VU 电平条、LED 呼吸灯、网格漂移背景",
-  preview: true,
-});
+if (!window.customCards.some((c) => c.type === "air-quality-card")) {
+  window.customCards.push({
+    type: "air-quality-card",
+    name: "空气质量卡片 · 像素版",
+    description: "Nothing 点阵像素风：5x7 点阵数值、VU 电平条、LED 呼吸灯、网格漂移背景",
+    preview: true,
+  });
+}
 
 console.info(`%c AIR-QUALITY-CARD %c v${CARD_VERSION} `, "color:#0d0d0d;background:#e04b34;font-weight:700", "color:#e04b34;background:#0d0d0d");

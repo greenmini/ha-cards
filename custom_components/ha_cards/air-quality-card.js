@@ -1,5 +1,5 @@
 /**
- * Air Quality Card · PIXEL EDITION — Nothing 点阵像素风空气质量卡片 v2.1.0
+ * Air Quality Card · PIXEL EDITION — Nothing 点阵像素风空气质量卡片 v2.1.1
  *
  * 设计语言：#0d0d0d 微网格底（22px 细格缓慢漂移）、5x7 点阵字形渲染全部数值、
  * LED 方灯 + 红色方块品牌标、VU 分段电平条（逐段错峰点亮）、等宽字体小标签。
@@ -15,7 +15,7 @@
  *   co2 / pm25 / tvoc / humidity / temperature: <entity_id>
  */
 
-const CARD_VERSION = "2.1.0-pixel";
+const CARD_VERSION = "2.1.1-pixel";
 
 const C = {
   bg: "#0d0d0d",
@@ -432,24 +432,36 @@ class AirQualityCard extends HTMLElement {
     this._trendLoading = true;
     const end = new Date();
     const start = new Date(end.getTime() - 24 * 3600000);
-    const url = `/api/history/period/${start.toISOString()}?filter_entity_id=${encodeURIComponent(eid)}&end_time=${end.toISOString()}&minimal_response&no_attributes`;
-    const token = this._hass.auth?.accessToken || this._hass.auth?.tokens?.access_token || this._hass.auth?.access_token;
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => { if (!r.ok) throw new Error("history " + r.status); return r.json(); })
-      .then((data) => {
-        const series = (data && data[0]) || [];
-        const vals = series.map((s) => parseFloat(s.state)).filter((v) => !isNaN(v));
-        if (vals.length < 2) return;
-        const step = Math.max(1, Math.floor(vals.length / 12));
-        const sampled = [];
-        for (let i = vals.length - 1; i >= 0; i -= step) sampled.unshift(vals[i]);
-        const last = sampled.slice(-12);
-        this._trend = { key: metricKey, vals: last };
-        this._trendDelta = last[last.length - 1] - last[0];
-        this._renderTrend();
-      })
-      .catch(() => { /* 历史不可用时静默隐藏 */ })
-      .finally(() => { this._trendLoading = false; });
+    const req = {
+      type: "history/stream",
+      entity_ids: [eid],
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      minimal_response: true,
+      no_attributes: true,
+    };
+    const onData = (data) => {
+      const series = (data && data[0]) || [];
+      const vals = series.map((s) => parseFloat(s.state)).filter((v) => !isNaN(v));
+      if (vals.length < 2) return;
+      const step = Math.max(1, Math.floor(vals.length / 12));
+      const sampled = [];
+      for (let i = vals.length - 1; i >= 0; i -= step) sampled.unshift(vals[i]);
+      const last = sampled.slice(-12);
+      this._trend = { key: metricKey, vals: last };
+      this._trendDelta = last[last.length - 1] - last[0];
+      this._renderTrend();
+    };
+    if (this._hass.callWS) {
+      this._hass.callWS(req).then(onData).catch(() => { this._trendLoading = false; });
+    } else {
+      const url = `/api/history/period/${start.toISOString()}?filter_entity_id=${encodeURIComponent(eid)}&end_time=${end.toISOString()}&minimal_response&no_attributes`;
+      const token = this._hass.auth?.accessToken || this._hass.auth?.tokens?.access_token || this._hass.auth?.access_token;
+      fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => { if (!r.ok) throw new Error("history " + r.status); return r.json(); })
+        .then(onData)
+        .catch(() => { this._trendLoading = false; });
+    }
   }
 
   _renderTrend() {

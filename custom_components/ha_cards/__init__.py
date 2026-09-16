@@ -3,10 +3,15 @@
 Bundles every Lovelace card from greenmini's HA card family and injects
 them into the frontend automatically:
 
-- air-quality-card   (像素版空气质量卡片, 由独立仓库/HACS 插件提供)
-- dishwasher-card    (像素版洗碗机卡片)
-- power-card         (像素版电力/用电卡片)
-- weather-glass-card (玻璃拟态天气卡片)
+- air-quality-card   (空气质量卡片)
+- dishwasher-card    (洗碗机卡片)
+- power-card         (电力/用电卡片)
+- light-pixel-card   (灯光卡片)
+- climate-pixel-card (空调卡片)
+- fan-pixel-card     (风扇卡片)
+- cover-pixel-card   (窗帘卡片)
+- weather-pixel-card (天气卡片)
+- weather-card       (玻璃拟态天气卡片)
 
 Install via HACS, then add the integration once from Settings -> Devices
 & Services (it has a config flow so it can be loaded from the UI).
@@ -27,11 +32,9 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 # file name -> public URL served by Home Assistant
-# (air-quality-card is provided by its own HACS frontend plugin repo and is
-#  intentionally NOT injected here to avoid duplicate registration;
-#  weather-card-editor.js is NOT injected either: it imports lit from an
-#  external CDN. Both stay available for manual use.)
+# every module listed here is BOTH served and injected into the frontend.
 CARD_MODULES = {
+    "air-quality-card.js": "/static/ha_cards/air-quality-card.js",
     "dishwasher-card.js": "/static/ha_cards/dishwasher-card.js",
     "weather-card.js": "/static/ha_cards/weather-card.js",
     "weather-pixel-card.js": "/static/ha_cards/weather-pixel-card.js",
@@ -42,12 +45,22 @@ CARD_MODULES = {
     "power-card.js": "/static/ha_cards/power-card.js",
 }
 
+# served but NOT injected: the weather card editor imports `lit` from an
+# external CDN (unpkg), which must not be pulled into the frontend globally.
+# Users who want the visual editor add it manually as a Lovelace resource:
+#   url: /static/ha_cards/weather-card-editor.js
+#   type: module
+EXTRA_STATIC = {
+    "weather-card-editor.js": "/static/ha_cards/weather-card-editor.js",
+}
+
 
 async def _register_cards(hass: HomeAssistant) -> None:
     """Serve the card JS and inject the modules into the frontend."""
     pkg_dir = Path(__file__).parent
     static_configs = [
-        (url, str(pkg_dir / name)) for name, url in CARD_MODULES.items()
+        (url, str(pkg_dir / name))
+        for name, url in {**CARD_MODULES, **EXTRA_STATIC}.items()
     ]
 
     # 1. serve the card JS through Home Assistant's own static handler.

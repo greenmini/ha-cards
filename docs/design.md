@@ -1,5 +1,9 @@
 # Design Language · 点阵像素风设计系统
 
+> ⚠️ **历史文档**：本文描述的是 v1.x 的点阵像素风设计系统。自 v2.0.0 起卡片已改为**简洁深色风**
+> （clean readable redesign，放弃点阵字形）。本文件保留作为历史参考，新卡片请遵循当前简洁风，
+> 具体以 `custom_components/ha_cards/` 下已发布的卡片源码为准。
+
 greenmini HA 卡片的统一视觉语言（Nothing 风格）。所有像素风卡片（air-quality-card、dishwasher-card 及未来新卡）必须遵循本文档，保证视觉一致性。
 
 ## 1. 调色板
